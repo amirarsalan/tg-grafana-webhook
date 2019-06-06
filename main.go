@@ -3,12 +3,15 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"text/template"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -66,12 +69,33 @@ Metrics:
 		}
 
 	}
+	fmt.Fprintf(w, "ok")
+
 }
 
 func main() {
 
+	port := flag.String("port", "17575", "Listen port")
+
+	flag.Parse()
+
+	listenAddr := ":" + *port
+
+	logger := log.New(os.Stdout, "http: ", log.LstdFlags)
+	logger.Println("Listen on", listenAddr)
+
 	r := mux.NewRouter()
 
 	r.HandleFunc("/webhooktel/{token}/{chatId}", handleWebhook)
-	log.Fatal(http.ListenAndServe("0.0.0.0:17575", r))
+
+	srv := &http.Server{
+		Addr:         listenAddr,
+		Handler:      r,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Fatalf("Could not listen on %s: %v\n", listenAddr, err)
+	}
 }
